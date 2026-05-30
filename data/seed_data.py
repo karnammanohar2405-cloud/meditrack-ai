@@ -1,20 +1,14 @@
-
 from database import *
-from faker import Faker
 import random
 
-fake = Faker()
-
 # -----------------------------
-# CREATE DATABASE
+# CREATE DB
 # -----------------------------
-
 create_database()
 
 # -----------------------------
-# SAMPLE MEDICINES
+# MEDICINES
 # -----------------------------
-
 medicine_list = [
     ("Paracetamol", "Fever"),
     ("Insulin", "Diabetes"),
@@ -28,65 +22,59 @@ medicine_list = [
     ("Vitamin D3", "Supplements")
 ]
 
-# -----------------------------
-# INSERT MEDICINES
-# -----------------------------
-
-for medicine in medicine_list:
-
-    insert_medicine(
-        medicine[0],
-        medicine[1]
-    )
+for m in medicine_list:
+    insert_medicine(m[0], m[1])
 
 print("Medicines inserted")
 
-
 # -----------------------------
-# INSERT HOSPITALS
+# HOSPITALS
 # -----------------------------
-
-districts = [
-    "Hyderabad",
-    "Warangal",
-    "Nalgonda",
-    "Karimnagar",
-    "Khammam",
-    "Adilabad",
-    "Mahabubnagar"
+hospitals = [
+    ("Osmania General Hospital", "Hyderabad"),
+    ("Gandhi Hospital", "Hyderabad"),
+    ("NIMS Hospital", "Hyderabad"),
+    ("MNJ Cancer Hospital", "Hyderabad"),
+    ("Niloufer Hospital", "Hyderabad"),
+    ("Fever Hospital", "Hyderabad"),
+    ("Chest Hospital Erragadda", "Hyderabad"),
+    ("ENT Hospital Koti", "Hyderabad"),
+    ("Sarojini Devi Eye Hospital", "Hyderabad"),
+    ("MGM Hospital", "Warangal"),
+    ("District Hospital", "Nalgonda"),
+    ("District Hospital", "Karimnagar"),
+    ("RIMS Hospital", "Adilabad"),
+    ("Government General Hospital", "Nizamabad"),
+    ("Government General Hospital", "Mahabubnagar")
 ]
 
-for i in range(100):
-
-    hospital_name = fake.company() + " Hospital"
-
-    district = random.choice(districts)
-
-    insert_hospital(
-        hospital_name,
-        district
-    )
+for h in hospitals:
+    insert_hospital(h[0], h[1])
 
 print("Hospitals inserted")
 
-
 # -----------------------------
-# INSERT MEDICINE REPORTS
+# REPORTS (FAST BULK INSERT)
 # -----------------------------
+hospitals_db = fetch_hospitals()
+medicines_db = fetch_medicines()
 
-for hospital_id in range(1, 101):
+reports = []
 
-    for medicine_id in range(1, 11):
+for hospital in hospitals_db:
+    for medicine in medicines_db:
 
         stock_quantity = random.randint(0, 200)
 
-        insert_report(
-            hospital_id,
-            medicine_id,
-            stock_quantity
+        reports.append(
+            build_report_tuple(
+                hospital[0],
+                medicine[0],
+                stock_quantity
+            )
         )
 
+insert_reports_bulk(reports)
+
 print("Medicine reports inserted")
-
-print("Large database created successfully")
-
+print("Database setup completed successfully 🚀")

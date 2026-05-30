@@ -5,23 +5,19 @@ DB_NAME = "data/hospital_data.db"
 
 
 # -----------------------------
-# DATABASE CONNECTION
+# CONNECTION
 # -----------------------------
-
 def connect_db():
     return sqlite3.connect(DB_NAME)
 
 
 # -----------------------------
-# CREATE DATABASE TABLES
+# CREATE TABLES
 # -----------------------------
-
 def create_database():
-
     conn = connect_db()
     cursor = conn.cursor()
 
-    # Hospitals Table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS Hospitals (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,7 +26,6 @@ def create_database():
     )
     """)
 
-    # Medicines Table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS Medicines (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,7 +34,6 @@ def create_database():
     )
     """)
 
-    # Medicine Reports Table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS MedicineReports (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,12 +42,8 @@ def create_database():
         stock_quantity INTEGER,
         status TEXT,
         last_updated TEXT,
-
-        FOREIGN KEY(hospital_id)
-        REFERENCES Hospitals(id),
-
-        FOREIGN KEY(medicine_id)
-        REFERENCES Medicines(id)
+        FOREIGN KEY(hospital_id) REFERENCES Hospitals(id),
+        FOREIGN KEY(medicine_id) REFERENCES Medicines(id)
     )
     """)
 
@@ -66,9 +56,7 @@ def create_database():
 # -----------------------------
 # INSERT HOSPITAL
 # -----------------------------
-
 def insert_hospital(name, district):
-
     conn = connect_db()
     cursor = conn.cursor()
 
@@ -84,55 +72,50 @@ def insert_hospital(name, district):
 # -----------------------------
 # INSERT MEDICINE
 # -----------------------------
-
 def insert_medicine(medicine_name, category):
-
     conn = connect_db()
     cursor = conn.cursor()
 
     cursor.execute("""
-    INSERT INTO Medicines(
-        medicine_name,
-        category
-    )
-
+    INSERT INTO Medicines(medicine_name, category)
     VALUES (?, ?)
-    """, (
-        medicine_name,
-        category
-    ))
+    """, (medicine_name, category))
 
     conn.commit()
     conn.close()
 
 
 # -----------------------------
-# INSERT REPORT
+# BUILD REPORT ROW
 # -----------------------------
+def build_report_tuple(hospital_id, medicine_id, stock_quantity):
 
-def insert_report(
-        hospital_id,
-        medicine_id,
-        stock_quantity):
-
-    conn = connect_db()
-    cursor = conn.cursor()
-
-    # Dynamic Status Logic
     if stock_quantity == 0:
         status = "Out of Stock"
-
     elif stock_quantity < 20:
         status = "Low Stock"
-
     else:
         status = "Available"
 
-    last_updated = datetime.now().strftime(
-        "%Y-%m-%d %H:%M:%S"
+    last_updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    return (
+        hospital_id,
+        medicine_id,
+        stock_quantity,
+        status,
+        last_updated
     )
 
-    cursor.execute("""
+
+# -----------------------------
+# BULK INSERT REPORTS (FAST)
+# -----------------------------
+def insert_reports_bulk(reports):
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    cursor.executemany("""
     INSERT INTO MedicineReports(
         hospital_id,
         medicine_id,
@@ -140,66 +123,39 @@ def insert_report(
         status,
         last_updated
     )
-
     VALUES (?, ?, ?, ?, ?)
-    """, (
-        hospital_id,
-        medicine_id,
-        stock_quantity,
-        status,
-        last_updated
-    ))
+    """, reports)
 
     conn.commit()
     conn.close()
 
 
 # -----------------------------
-# FETCH HOSPITALS
+# FETCH FUNCTIONS
 # -----------------------------
-
 def fetch_hospitals():
-
     conn = connect_db()
     cursor = conn.cursor()
 
-    cursor.execute(
-        "SELECT * FROM Hospitals"
-    )
-
+    cursor.execute("SELECT * FROM Hospitals")
     data = cursor.fetchall()
 
     conn.close()
-
     return data
 
-
-# -----------------------------
-# FETCH MEDICINES
-# -----------------------------
 
 def fetch_medicines():
-
     conn = connect_db()
     cursor = conn.cursor()
 
-    cursor.execute(
-        "SELECT * FROM Medicines"
-    )
-
+    cursor.execute("SELECT * FROM Medicines")
     data = cursor.fetchall()
 
     conn.close()
-
     return data
 
 
-# -----------------------------
-# FETCH REPORTS
-# -----------------------------
-
 def fetch_reports():
-
     conn = connect_db()
     cursor = conn.cursor()
 
@@ -210,31 +166,20 @@ def fetch_reports():
         MedicineReports.stock_quantity,
         MedicineReports.status,
         MedicineReports.last_updated
-
     FROM MedicineReports
-
-    JOIN Hospitals
-    ON Hospitals.id =
-    MedicineReports.hospital_id
-
-    JOIN Medicines
-    ON Medicines.id =
-    MedicineReports.medicine_id
+    JOIN Hospitals ON Hospitals.id = MedicineReports.hospital_id
+    JOIN Medicines ON Medicines.id = MedicineReports.medicine_id
     """)
 
     data = cursor.fetchall()
-
     conn.close()
-
     return data
 
 
 # -----------------------------
 # SEARCH MEDICINE
 # -----------------------------
-
-def search_medicine(medicine_name):
-
+def search_medicine(name):
     conn = connect_db()
     cursor = conn.cursor()
 
@@ -244,25 +189,12 @@ def search_medicine(medicine_name):
         Medicines.medicine_name,
         MedicineReports.stock_quantity,
         MedicineReports.status
-
     FROM MedicineReports
-
-    JOIN Hospitals
-    ON Hospitals.id =
-    MedicineReports.hospital_id
-
-    JOIN Medicines
-    ON Medicines.id =
-    MedicineReports.medicine_id
-
-    WHERE Medicines.medicine_name
-    LIKE ?
-    """, (
-        '%' + medicine_name + '%',
-    ))
+    JOIN Hospitals ON Hospitals.id = MedicineReports.hospital_id
+    JOIN Medicines ON Medicines.id = MedicineReports.medicine_id
+    WHERE Medicines.medicine_name LIKE ?
+    """, ('%' + name + '%',))
 
     data = cursor.fetchall()
-
     conn.close()
-
     return data
