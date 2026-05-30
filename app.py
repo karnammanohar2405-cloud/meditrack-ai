@@ -1,5 +1,19 @@
 import streamlit as st
 import pandas as pd
+from PIL import Image
+
+from ocr.ocr import (
+    extract_text_from_image,
+    extract_text_from_pdf
+)
+
+from ocr.medicine_extractor import (
+    extract_medicines
+)
+
+from ai.groq_analysis import (
+    analyze_shortages
+)
 
 from data.database import (
     fetch_hospitals,
@@ -109,16 +123,85 @@ elif page == "Upload Prescription":
     )
 
     if file:
+
         st.success("Uploaded successfully")
 
-        st.subheader("Detected Medicines")
-        st.write("• Paracetamol")
-        st.write("• Azithromycin")
-        st.write("• Vitamin D3")
+        if file.type == "application/pdf":
+
+            extracted_text = extract_text_from_pdf(
+                file
+            )
+
+        else:
+
+            image = Image.open(file)
+
+            extracted_text = extract_text_from_image(
+                image
+            )
+
+        st.subheader("📄 Extracted Text")
+
+        st.text_area(
+            "OCR Output",
+            extracted_text,
+            height=200
+        )
+
+        medicines = extract_medicines(
+            extracted_text
+        )
+
+        st.subheader("💊 Detected Medicines")
+
+        if medicines:
+
+            for medicine in medicines:
+
+                st.success(
+                    f"💊 {medicine}"
+                )
+
+        else:
+
+            st.warning(
+                "No medicines detected"
+            )
 
         if st.button("Find Hospitals"):
-            st.info("AI matching hospitals feature coming soon 🚀")
 
+            for medicine in medicines:
+
+                results = search_medicine(
+                    medicine
+                )
+
+                if results:
+
+                    st.write(
+                        f"### {medicine}"
+                    )
+
+                    df = pd.DataFrame(
+                        results,
+                        columns=[
+                            "Hospital",
+                            "Medicine",
+                            "Stock",
+                            "Status"
+                        ]
+                    )
+
+                    st.dataframe(
+                        df,
+                        use_container_width=True
+                    )
+
+                else:
+
+                    st.warning(
+                        f"No hospitals found for {medicine}"
+                    )
 
 # ---------------- REPORT SHORTAGE ---------------- #
 elif page == "Report Shortage":
@@ -184,30 +267,60 @@ elif page == "AI Insights":
 
     st.title("🤖 AI Insights")
 
+    if st.button("Generate AI Analysis"):
+
+        reports = fetch_reports()
+
+        analysis = analyze_shortages(
+            str(reports)
+        )
+
+        st.subheader(
+            "AI Analysis Report"
+        )
+
+        st.write(
+            analysis
+        )
+
+    st.markdown("---")
+
     reports = fetch_reports()
 
-    df = pd.DataFrame(reports, columns=[
-        "Hospital",
-        "Medicine",
-        "Stock",
-        "Status",
-        "Last Updated"
-    ])
+    df = pd.DataFrame(
+        reports,
+        columns=[
+            "Hospital",
+            "Medicine",
+            "Stock",
+            "Status",
+            "Last Updated"
+        ]
+    )
 
     total = len(df)
-    low = len(df[df["Status"] == "Low Stock"])
-    out = len(df[df["Status"] == "Out of Stock"])
 
-    if len(df[df["Status"] != "Available"]) > 0:
-        top_hospital = df[df["Status"] != "Available"]["Hospital"].value_counts().idxmax()
-        top_medicine = df[df["Status"] != "Available"]["Medicine"].value_counts().idxmax()
-    else:
-        top_hospital = "N/A"
-        top_medicine = "N/A"
+    low = len(
+        df[df["Status"] == "Low Stock"]
+    )
 
-    st.metric("Total Records", total)
-    st.metric("Low Stock", low)
-    st.metric("Out of Stock", out)
+    out = len(
+        df[df["Status"] == "Out of Stock"]
+    )
 
-    st.info(f"Most affected hospital: {top_hospital}")
-    st.info(f"Most affected medicine: {top_medicine}")
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Total Records",
+        total
+    )
+
+    col2.metric(
+        "Low Stock",
+        low
+    )
+
+    col3.metric(
+        "Out Of Stock",
+        out
+    )
