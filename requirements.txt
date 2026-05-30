@@ -1,0 +1,8 @@
+streamlit
+pandas
+pillow
+pytesseract
+pdfplumber
+groq
+python-dotenv
+opencv-python
