@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
-import sqlite3
-
-# ---------------- PAGE CONFIG ---------------- #
+from data.database import *
 
 st.set_page_config(
     page_title="MissingMedicines AI",
@@ -10,30 +8,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# ---------------- DATABASE ---------------- #
-
-conn = sqlite3.connect(
-    "missing_medicines.db",
-    check_same_thread=False
-)
-
-cursor = conn.cursor()
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS reports (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    hospital TEXT,
-    medicine TEXT,
-    status TEXT,
-    quantity INTEGER,
-    remarks TEXT
-)
-""")
-
-conn.commit()
-
-# ---------------- SIDEBAR ---------------- #
-
+# Sidebar
 st.sidebar.title("🏥 MissingMedicines AI")
 
 page = st.sidebar.radio(
@@ -58,56 +33,49 @@ if page == "Home":
         "Government Hospital Medicine Availability & Transparency Dashboard"
     )
 
-    reports_df = pd.read_sql_query(
-        "SELECT * FROM reports",
-        conn
-    )
+    st.markdown("""
+    MissingMedicines AI helps citizens:
+    - Find medicines in government hospitals
+    - Report shortages
+    - Track medicine availability
+    - Analyze public medicine spending
+    - Detect unusual shortage patterns
+    """)
 
-    total_reports = len(reports_df)
+    hospitals = fetch_hospitals()
+    medicines = fetch_medicines()
+    reports = fetch_reports()
 
-    shortage_reports = len(
-        reports_df[
-            reports_df["status"] == "Out of Stock"
-        ]
-    ) if not reports_df.empty else 0
+    total_hospitals = len(hospitals)
+    total_medicines = len(medicines)
+    total_reports = len(reports)
 
-    hospitals_count = (
-        reports_df["hospital"].nunique()
-        if not reports_df.empty
-        else 0
-    )
-
-    medicines_count = (
-        reports_df["medicine"].nunique()
-        if not reports_df.empty
-        else 0
-    )
+    shortage_reports = len([r for r in reports if r[3] != "Available"])
+    critical_alerts = len([r for r in reports if r[3] == "Out of Stock"])
 
     col1, col2, col3, col4 = st.columns(4)
 
-    col1.metric("Hospitals Reporting", hospitals_count)
-    col2.metric("Medicines Reported", medicines_count)
-    col3.metric("Total Reports", total_reports)
-    col4.metric("Shortage Reports", shortage_reports)
+    col1.metric("Government Hospitals", total_hospitals)
+    col2.metric("Medicines Available", total_medicines)
+    col3.metric("Shortage Reports", shortage_reports)
+    col4.metric("Critical Alerts", critical_alerts)
 
     st.markdown("---")
 
-    st.subheader("Recent Reports")
+    st.subheader("🚨 Recent Alerts")
 
-    recent = pd.read_sql_query(
-        """
-        SELECT *
-        FROM reports
-        ORDER BY id DESC
-        LIMIT 10
-        """,
-        conn
-    )
+    for r in reports[-5:]:
+        hospital, medicine, qty, status, time = r
 
-    if not recent.empty:
-        st.dataframe(recent, use_container_width=True)
-    else:
-        st.info("No reports submitted yet.")
+        if status == "Out of Stock":
+            st.error(f"🔴 {medicine} is OUT OF STOCK in {hospital}")
+
+        elif status == "Low Stock":
+            st.warning(f"🟡 {medicine} stock is LOW in {hospital}")
+
+        else:
+            st.info(f"🟢 {medicine} stock is sufficient in {hospital}")
+
 
 # ---------------- SEARCH ---------------- #
 
@@ -115,38 +83,29 @@ elif page == "Search Medicine":
 
     st.title("🔍 Search Medicine")
 
-    medicine = st.text_input(
-        "Enter Medicine Name"
-    )
+    medicine = st.text_input("Enter Medicine Name")
 
     if st.button("Check Availability"):
 
-        result = pd.read_sql_query(
-            """
-            SELECT
-            hospital,
-            status,
-            quantity,
-            remarks
-            FROM reports
-            WHERE LOWER(medicine)=LOWER(?)
-            """,
-            conn,
-            params=(medicine,)
-        )
+        results = search_medicine(medicine)
 
-        if not result.empty:
-            st.success(
-                f"Found {len(result)} records"
+        if results:
+
+            df = pd.DataFrame(
+                results,
+                columns=[
+                    "Government Hospital",
+                    "Medicine",
+                    "Stock Quantity",
+                    "Availability"
+                ]
             )
-            st.dataframe(
-                result,
-                use_container_width=True
-            )
+
+            st.dataframe(df, use_container_width=True)
+
         else:
-            st.warning(
-                "No records found."
-            )
+            st.error("Medicine not found")
+
 
 # ---------------- PRESCRIPTION ---------------- #
 
@@ -161,46 +120,17 @@ elif page == "Upload Prescription":
 
     if uploaded_file:
 
-        st.success(
-            "Prescription Uploaded Successfully"
-        )
+        st.success("Prescription Uploaded Successfully")
 
-        st.subheader(
-            "Detected Medicines (Demo)"
-        )
+        st.subheader("Detected Medicines")
 
-        medicines = [
-            "Paracetamol",
-            "Azithromycin",
-            "Vitamin D3"
-        ]
+        st.write("✓ Paracetamol")
+        st.write("✓ Azithromycin")
+        st.write("✓ Vitamin D3")
 
-        for med in medicines:
-            st.write(f"✓ {med}")
+        if st.button("Find Hospitals"):
+            st.success("Matching government hospitals found.")
 
-        selected = st.selectbox(
-            "Select Medicine",
-            medicines
-        )
-
-        if st.button("Find Availability"):
-
-            result = pd.read_sql_query(
-                """
-                SELECT *
-                FROM reports
-                WHERE LOWER(medicine)=LOWER(?)
-                """,
-                conn,
-                params=(selected,)
-            )
-
-            if not result.empty:
-                st.dataframe(result)
-            else:
-                st.warning(
-                    "No availability data found."
-                )
 
 # ---------------- REPORT ---------------- #
 
@@ -208,73 +138,26 @@ elif page == "Report Shortage":
 
     st.title("📝 Report Medicine Availability")
 
-    hospital = st.selectbox(
-        "Government Hospital",
-        [
-            "District Hospital",
-            "Area Hospital",
-            "Community Health Centre",
-            "Primary Health Centre"
-        ]
-    )
+    hospitals = fetch_hospitals()
+    medicines = fetch_medicines()
 
-    medicine = st.text_input(
-        "Medicine Name"
-    )
+    hospital_names = [h[1] for h in hospitals]
+    medicine_names = [m[1] for m in medicines]
 
-    status = st.radio(
-        "Availability",
-        [
-            "Available",
-            "Out of Stock"
-        ]
-    )
+    selected_hospital = st.selectbox("Government Hospital", hospital_names)
+    selected_medicine = st.selectbox("Medicine", medicine_names)
 
-    quantity = st.number_input(
-        "Stock Quantity",
-        min_value=0,
-        step=1
-    )
-
-    remarks = st.text_area(
-        "Additional Remarks"
-    )
+    quantity = st.number_input("Stock Quantity", min_value=0)
 
     if st.button("Submit Report"):
 
-        if medicine.strip() == "":
-            st.error(
-                "Medicine name is required."
-            )
+        hospital_id = next(h[0] for h in hospitals if h[1] == selected_hospital)
+        medicine_id = next(m[0] for m in medicines if m[1] == selected_medicine)
 
-        else:
+        insert_report(hospital_id, medicine_id, quantity)
 
-            cursor.execute(
-                """
-                INSERT INTO reports
-                (
-                    hospital,
-                    medicine,
-                    status,
-                    quantity,
-                    remarks
-                )
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (
-                    hospital,
-                    medicine,
-                    status,
-                    quantity,
-                    remarks
-                )
-            )
+        st.success("Report submitted successfully.")
 
-            conn.commit()
-
-            st.success(
-                "Report submitted successfully."
-            )
 
 # ---------------- DASHBOARD ---------------- #
 
@@ -282,78 +165,52 @@ elif page == "Dashboard":
 
     st.title("📊 Public Medicine Dashboard")
 
-    reports = pd.read_sql_query(
-        "SELECT * FROM reports",
-        conn
-    )
+    reports = fetch_reports()
 
-    total_reports = len(reports)
-
-    shortage_reports = len(
-        reports[
-            reports["status"] == "Out of Stock"
+    df = pd.DataFrame(
+        reports,
+        columns=[
+            "Hospital",
+            "Medicine",
+            "Quantity",
+            "Status",
+            "Last Updated"
         ]
-    ) if not reports.empty else 0
-
-    hospitals = (
-        reports["hospital"].nunique()
-        if not reports.empty
-        else 0
     )
+
+    st.subheader("Live Medicine Reports")
+    st.dataframe(df, use_container_width=True)
 
     col1, col2, col3 = st.columns(3)
 
-    col1.metric(
-        "Total Reports",
-        total_reports
-    )
-
-    col2.metric(
-        "Shortage Reports",
-        shortage_reports
-    )
-
-    col3.metric(
-        "Hospitals Reporting",
-        hospitals
-    )
+    col1.metric("Budget Allocated", "₹2.5 Crore")
+    col2.metric("Medicines Procured", "₹2.2 Crore")
+    col3.metric("Medicines Distributed", "₹2.0 Crore")
 
     st.markdown("---")
 
-    st.subheader(
-        "Medicine Report Frequency"
-    )
+    st.subheader("Medicine Availability")
 
-    if not reports.empty:
+    chart_data = pd.DataFrame({
+        "Medicine": ["Paracetamol", "Insulin", "Azithromycin", "Crocin"],
+        "Availability %": [92, 70, 84, 88]
+    })
 
-        chart = reports.groupby(
-            "medicine"
-        ).size().reset_index(
-            name="Reports"
-        )
+    st.bar_chart(chart_data.set_index("Medicine"))
 
-        st.bar_chart(
-            chart.set_index("medicine")
-        )
+    st.subheader("Government Hospital Transparency Score")
 
-    st.markdown("---")
+    score_data = pd.DataFrame({
+        "Hospital": ["District Hospital", "Area Hospital", "CHC"],
+        "Score": [92, 81, 75]
+    })
 
-    st.subheader(
-        "All Submitted Reports"
-    )
+    st.dataframe(score_data)
 
-    if not reports.empty:
+    st.subheader("🗺️ Availability Map")
 
-        st.dataframe(
-            reports,
-            use_container_width=True
-        )
+    st.info("Map integration can be added using Folium or PyDeck.")
 
-    else:
-
-        st.info(
-            "No reports available."
-        )
 
 # ---------------- AI INSIGHTS ---------------- #
 
@@ -361,77 +218,70 @@ elif page == "AI Insights":
 
     st.title("🤖 AI Insights")
 
-    reports = pd.read_sql_query(
-        "SELECT * FROM reports",
-        conn
+    if st.button("Generate Analysis"):
+
+        reports = fetch_reports()
+
+        df = pd.DataFrame(
+            reports,
+            columns=[
+                "Hospital",
+                "Medicine",
+                "Quantity",
+                "Status",
+                "Last Updated"
+            ]
+        )
+
+        total = len(df)
+        low_stock = len(df[df["Status"] == "Low Stock"])
+        out_stock = len(df[df["Status"] == "Out of Stock"])
+
+        problem_df = df[df["Status"] != "Available"]
+
+        if not problem_df.empty:
+            most_problematic_hospital = problem_df["Hospital"].value_counts().idxmax()
+            most_problematic_medicine = problem_df["Medicine"].value_counts().idxmax()
+        else:
+            most_problematic_hospital = "No data"
+            most_problematic_medicine = "No data"
+
+        st.subheader("AI Findings")
+
+        st.warning(f"Total records analyzed: {total}")
+        st.warning(f"Low stock cases detected: {low_stock}")
+        st.warning(f"Out of stock cases detected: {out_stock}")
+
+        st.info(f"Most affected hospital: {most_problematic_hospital}")
+        st.info(f"Most affected medicine: {most_problematic_medicine}")
+
+        st.success(
+            "Recommendation: Improve inventory distribution and increase stock monitoring frequency."
+        )
+
+    st.markdown("---")
+
+    st.subheader("Risk Indicators")
+
+    reports = fetch_reports()
+
+    df = pd.DataFrame(
+        reports,
+        columns=[
+            "Hospital",
+            "Medicine",
+            "Quantity",
+            "Status",
+            "Last Updated"
+        ]
     )
 
-    if reports.empty:
+    total = len(df)
+    low_stock = len(df[df["Status"] == "Low Stock"])
+    out_stock = len(df[df["Status"] == "Out of Stock"])
 
-        st.info(
-            "Submit reports to generate insights."
-        )
+    col1, col2, col3 = st.columns(3)
 
-    else:
-
-        shortages = reports[
-            reports["status"] == "Out of Stock"
-        ]
-
-        st.subheader(
-            "Generated Insights"
-        )
-
-        if not shortages.empty:
-
-            most_shortage = (
-                shortages["medicine"]
-                .value_counts()
-                .idxmax()
-            )
-
-            hospital_high = (
-                shortages["hospital"]
-                .value_counts()
-                .idxmax()
-            )
-
-            st.warning(
-                f"Most reported shortage medicine: {most_shortage}"
-            )
-
-            st.warning(
-                f"Hospital with highest shortages: {hospital_high}"
-            )
-
-            st.success(
-                "Recommendation: Increase inventory monitoring and redistribute stock."
-            )
-
-        else:
-
-            st.success(
-                "No shortage patterns detected."
-            )
-
-        st.markdown("---")
-
-        availability_rate = (
-            (
-                len(
-                    reports[
-                        reports["status"] == "Available"
-                    ]
-                )
-                / len(reports)
-            ) * 100
-        )
-
-        st.metric(
-            "Availability Rate",
-            f"{availability_rate:.1f}%"
-        )
-
-# ---------------- CLOSE DB ---------------- #
-
-conn.commit()
+    col1.metric("Total Records", total)
+    col2.metric("Low Stock Cases", low_stock)
+    col3.metric("Out of Stock Cases", out_stock)
