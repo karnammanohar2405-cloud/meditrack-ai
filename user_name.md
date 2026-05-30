@@ -1,4 +1,4 @@
-# MissingMedicines AI - User Manual 📖
+  # MissingMedicines AI - User Manual 📖
 
 ## Introduction
 
