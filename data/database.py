@@ -86,30 +86,44 @@ def insert_medicine(medicine_name, category):
 
 
 # -----------------------------
-# BUILD REPORT ROW
+# STATUS HELPER
 # -----------------------------
-def build_report_tuple(hospital_id, medicine_id, stock_quantity):
-
+def get_status(stock_quantity):
     if stock_quantity == 0:
-        status = "Out of Stock"
+        return "Out of Stock"
     elif stock_quantity < 20:
-        status = "Low Stock"
+        return "Low Stock"
     else:
-        status = "Available"
+        return "Available"
 
+
+# -----------------------------
+# INSERT SINGLE REPORT (USED IN STREAMLIT)
+# -----------------------------
+def insert_report_single(hospital_id, medicine_id, stock_quantity):
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    status = get_status(stock_quantity)
     last_updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    return (
+    cursor.execute("""
+    INSERT INTO MedicineReports(
         hospital_id,
         medicine_id,
         stock_quantity,
         status,
         last_updated
     )
+    VALUES (?, ?, ?, ?, ?)
+    """, (hospital_id, medicine_id, stock_quantity, status, last_updated))
+
+    conn.commit()
+    conn.close()
 
 
 # -----------------------------
-# BULK INSERT REPORTS (FAST)
+# BULK INSERT REPORTS (SEED DATA)
 # -----------------------------
 def insert_reports_bulk(reports):
     conn = connect_db()
@@ -131,7 +145,17 @@ def insert_reports_bulk(reports):
 
 
 # -----------------------------
-# FETCH FUNCTIONS
+# BUILD REPORT TUPLE (FOR SEEDING)
+# -----------------------------
+def build_report_tuple(hospital_id, medicine_id, stock_quantity):
+    status = get_status(stock_quantity)
+    last_updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    return (hospital_id, medicine_id, stock_quantity, status, last_updated)
+
+
+# -----------------------------
+# FETCH HOSPITALS
 # -----------------------------
 def fetch_hospitals():
     conn = connect_db()
@@ -144,6 +168,9 @@ def fetch_hospitals():
     return data
 
 
+# -----------------------------
+# FETCH MEDICINES
+# -----------------------------
 def fetch_medicines():
     conn = connect_db()
     cursor = conn.cursor()
@@ -155,6 +182,9 @@ def fetch_medicines():
     return data
 
 
+# -----------------------------
+# FETCH REPORTS
+# -----------------------------
 def fetch_reports():
     conn = connect_db()
     cursor = conn.cursor()
