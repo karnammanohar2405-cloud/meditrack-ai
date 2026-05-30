@@ -1,21 +1,11 @@
+from database.database import fetch_medicines
+
 
 def extract_medicines(text):
 
-    medicines = [
-        "Paracetamol",
-        "Dolo 650",
-        "Crocin",
-        "Azithromycin",
-        "Calpol",
-        "Oflon",
-        "Levolin",
-        "Meftal-P",
-        "Insulin",
-        "Metformin",
-        "Cetirizine",
-        "Vitamin D3",
-        "Omeprazole"
-    ]
+    medicine_rows = fetch_medicines()
+
+    medicines = [row[1] for row in medicine_rows]
 
     detected = []
 
