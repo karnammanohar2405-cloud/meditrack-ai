@@ -1,4 +1,4 @@
-from database.database import fetch_medicines
+from data.database import fetch_medicines
 
 
 def extract_medicines(text):
