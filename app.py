@@ -143,8 +143,11 @@ elif page == "Upload Prescription":
 
         st.text_area("OCR Output", extracted_text, height=200)
 
-        medicines = extract_medicines(extracted_text)
-
+        medicines = extract_medicines(
+            extracted_text
+        )
+        st.write("OCR RAW TEXT:")
+        st.code(extracted_text)
         st.subheader("💊 Detected Medicines")
 
         if medicines:
