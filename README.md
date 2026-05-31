@@ -95,14 +95,13 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 Project Name: MEDI TRACK AI
 Focus Area: Telangana-Level / India-Level
-Team Members: Manohar, jashwitha , adwitha , yogesh , akhila
+Team Members:
+ Manohar:worked on search.py used to search hospitals
+ jashwitha: worked on database.py,seed_data.py created and connecting the databases
+ adwitha :testing test.py
+ yogesh :worked on frontend app.py
+ akhila:ai integration,ocr analysis
 
-## Contact & Support
-
-For questions or support, please:
-
-Open an issue on GitHub
-Contact: [your email]
 
 ## Acknowledgments
 
