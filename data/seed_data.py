@@ -19,7 +19,32 @@ medicine_list = [
     ("Metformin", "Diabetes"),
     ("Cetirizine", "Allergy"),
     ("Omeprazole", "Acidity"),
-    ("Vitamin D3", "Supplements")
+    ("Vitamin D3", "Supplements"),
+
+    # Added Medicines
+    ("Aspirin", "Heart"),
+    ("Ibuprofen", "Pain Relief"),
+    ("Ciprofloxacin", "Antibiotic"),
+    ("Pantoprazole", "Acidity"),
+    ("Losartan", "Blood Pressure"),
+    ("Amlodipine", "Blood Pressure"),
+    ("Atorvastatin", "Cholesterol"),
+    ("Levocetirizine", "Allergy"),
+    ("Ranitidine", "Acidity"),
+    ("Diclofenac", "Pain Relief"),
+    ("ORS", "Dehydration"),
+    ("Zincovit", "Supplements"),
+    ("Telmisartan", "Blood Pressure"),
+    ("Glimepiride", "Diabetes"),
+    ("Hydroxychloroquine", "Autoimmune"),
+    ("Albendazole", "Deworming"),
+    ("Dexamethasone", "Steroid"),
+    ("Salbutamol", "Asthma"),
+
+    # NEWLY ADDED
+    ("Calpol", "Fever"),
+    ("Levolin", "Asthma"),
+    ("Meftal-P", "Pain Relief")
 ]
 
 for m in medicine_list:

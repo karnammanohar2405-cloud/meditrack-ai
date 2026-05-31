@@ -151,6 +151,8 @@ elif page == "Upload Prescription":
         medicines = extract_medicines(
             extracted_text
         )
+        st.write("OCR RAW TEXT:")
+        st.code(extracted_text)
 
         st.subheader("💊 Detected Medicines")
 
