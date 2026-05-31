@@ -1,3 +1,33 @@
+## Description
+MissingMedicines AI 🏥💊
+
+MissingMedicines AI is an AI-powered healthcare intelligence platform designed to improve medicine accessibility in government hospitals. The system helps citizens instantly check medicine availability, report shortages, and locate nearby hospitals with required medicines in real-time.
+
+The platform combines Artificial Intelligence, OCR technology, live analytics, and interactive healthcare maps to create a transparent and data-driven public healthcare support system.
+
+Key Features
+📷 OCR-based prescription scanning
+🔍 Real-time medicine availability search
+🏥 Government hospital medicine tracking
+📝 Medicine shortage reporting system
+🤖 AI-powered shortage analysis and insights
+🌍 Interactive hospital maps with heatmaps
+📊 Government healthcare spending analytics
+📈 Medicine reach and efficiency scoring
+💡 Dynamic dashboards and live stock monitoring
+Technologies Used
+Python
+Streamlit
+SQLite
+FastAPI
+Folium Maps
+OCR (Tesseract + OpenCV)
+Pandas
+Groq AI
+ReportLab
+Impact
+
+This project aims to reduce unnecessary travel, improve transparency in public healthcare systems, support government healthcare planning, and ensure citizens receive timely access to essential medicines.
 ## Live Demo 
 https://huggingface.co/spaces/eedulakantijashwitha/meditrackAI
 
