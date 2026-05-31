@@ -11,3 +11,11 @@ streamlit-folium
 fastapi
 uvicorn
 reportlab
+pytest
+pytest-cov
+bandit
+black
+ruff
+pip-audit
+pre-commit
+mypy
