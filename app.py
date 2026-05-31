@@ -439,19 +439,23 @@ elif page == "AI Insights":
 
 
 # ---------------- GOVT MAP ---------------- #
+    # ---------------- GOVT MAP ---------------- #
 elif page == "Govt Spending & Reach Map":
 
     st.title("🌍 Government Spending vs Healthcare Reach")
 
     reports = fetch_reports()
 
-    df = pd.DataFrame(reports, columns=[
-        "Hospital",
-        "Medicine",
-        "Stock",
-        "Status",
-        "Last Updated"
-    ])
+    df = pd.DataFrame(
+        reports,
+        columns=[
+            "Hospital",
+            "Medicine",
+            "Stock",
+            "Status",
+            "Last Updated"
+        ]
+    )
 
     schemes = fetch_schemes()
 
@@ -475,14 +479,17 @@ elif page == "Govt Spending & Reach Map":
 
     if schemes:
 
-        scheme_df = pd.DataFrame(schemes, columns=[
-            "ID",
-            "Scheme",
-            "Budget",
-            "State Share",
-            "Central Share",
-            "Year"
-        ])
+        scheme_df = pd.DataFrame(
+            schemes,
+            columns=[
+                "ID",
+                "Scheme",
+                "Budget",
+                "State Share",
+                "Central Share",
+                "Year"
+            ]
+        )
 
         st.dataframe(
             scheme_df,
@@ -507,10 +514,17 @@ elif page == "Govt Spending & Reach Map":
 
     for h in hospitals:
 
-        if h[3] and h[4]:
-            heat_data.append([h[3], h[4]])
+        try:
+            lat = float(h[3])
+            lon = float(h[4])
 
-    HeatMap(heat_data).add_to(m)
+            heat_data.append([lat, lon])
+
+        except:
+            continue
+
+    # TEMPORARILY DISABLED FOR DEBUGGING
+    # HeatMap(heat_data).add_to(m)
 
     for r in reports:
 
@@ -523,7 +537,12 @@ elif page == "Govt Spending & Reach Map":
 
         if hosp:
 
-            lat, lon = hosp[3], hosp[4]
+            try:
+                lat = float(hosp[3])
+                lon = float(hosp[4])
+
+            except:
+                continue
 
             color = (
                 "green"
@@ -539,16 +558,35 @@ elif page == "Govt Spending & Reach Map":
                 icon=folium.Icon(color=color)
             ).add_to(m)
 
-    st_folium(m, width=700, height=500)
+    st_folium(
+        m,
+        width=700,
+        height=500
+    )
 
     total = len(df)
 
-    low = len(df[df["Status"] == "Low Stock"])
+    low = len(
+        df[df["Status"] == "Low Stock"]
+    )
 
-    out = len(df[df["Status"] == "Out of Stock"])
+    out = len(
+        df[df["Status"] == "Out of Stock"]
+    )
 
     col1, col2, col3 = st.columns(3)
 
-    col1.metric("Total Records", total)
-    col2.metric("🟡 Low Stock", low)
-    col3.metric("🔴 Out Of Stock", out)
+    col1.metric(
+        "Total Records",
+        total
+    )
+
+    col2.metric(
+        "🟡 Low Stock",
+        low
+    )
+
+    col3.metric(
+        "🔴 Out Of Stock",
+        out
+    )
