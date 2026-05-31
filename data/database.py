@@ -18,11 +18,14 @@ def create_database():
     conn = connect_db()
     cursor = conn.cursor()
 
+    # Hospitals table (FINAL STRUCTURE)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS Hospitals (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        district TEXT
+        district TEXT,
+        latitude REAL,
+        longitude REAL
     )
     """)
 
@@ -47,6 +50,17 @@ def create_database():
     )
     """)
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS GovernmentSchemes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        scheme_name TEXT NOT NULL,
+        budget_allocated REAL,
+        state_share REAL,
+        central_share REAL,
+        year INTEGER
+    )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -56,14 +70,14 @@ def create_database():
 # -----------------------------
 # INSERT HOSPITAL
 # -----------------------------
-def insert_hospital(name, district):
+def insert_hospital(name, district, latitude, longitude):
     conn = connect_db()
     cursor = conn.cursor()
 
     cursor.execute("""
-    INSERT INTO Hospitals(name, district)
-    VALUES (?, ?)
-    """, (name, district))
+    INSERT INTO Hospitals(name, district, latitude, longitude)
+    VALUES (?, ?, ?, ?)
+    """, (name, district, latitude, longitude))
 
     conn.commit()
     conn.close()
@@ -98,7 +112,7 @@ def get_status(stock_quantity):
 
 
 # -----------------------------
-# INSERT SINGLE REPORT (USED IN STREAMLIT)
+# INSERT SINGLE REPORT
 # -----------------------------
 def insert_report_single(hospital_id, medicine_id, stock_quantity):
     conn = connect_db()
@@ -123,7 +137,7 @@ def insert_report_single(hospital_id, medicine_id, stock_quantity):
 
 
 # -----------------------------
-# BULK INSERT REPORTS (SEED DATA)
+# BULK INSERT REPORTS
 # -----------------------------
 def insert_reports_bulk(reports):
     conn = connect_db()
@@ -145,7 +159,7 @@ def insert_reports_bulk(reports):
 
 
 # -----------------------------
-# BUILD REPORT TUPLE (FOR SEEDING)
+# BUILD REPORT TUPLE
 # -----------------------------
 def build_report_tuple(hospital_id, medicine_id, stock_quantity):
     status = get_status(stock_quantity)
@@ -226,5 +240,38 @@ def search_medicine(name):
     """, ('%' + name + '%',))
 
     data = cursor.fetchall()
+    conn.close()
+    return data
+
+
+# -----------------------------
+# GOVERNMENT SCHEMES
+# -----------------------------
+def insert_scheme(scheme_name, budget_allocated, state_share, central_share, year):
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    INSERT INTO GovernmentSchemes(
+        scheme_name,
+        budget_allocated,
+        state_share,
+        central_share,
+        year
+    )
+    VALUES (?, ?, ?, ?, ?)
+    """, (scheme_name, budget_allocated, state_share, central_share, year))
+
+    conn.commit()
+    conn.close()
+
+
+def fetch_schemes():
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM GovernmentSchemes")
+    data = cursor.fetchall()
+
     conn.close()
     return data

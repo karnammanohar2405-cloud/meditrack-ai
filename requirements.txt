@@ -3,6 +3,11 @@ pandas
 pillow
 pytesseract
 pdfplumber
+opencv-python
 groq
 python-dotenv
-opencv-python
+folium
+streamlit-folium
+fastapi
+uvicorn
+reportlab

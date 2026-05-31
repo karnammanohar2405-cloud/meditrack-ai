@@ -56,27 +56,25 @@ print("Medicines inserted")
 # HOSPITALS
 # -----------------------------
 hospitals = [
-    ("Osmania General Hospital", "Hyderabad"),
-    ("Gandhi Hospital", "Hyderabad"),
-    ("NIMS Hospital", "Hyderabad"),
-    ("MNJ Cancer Hospital", "Hyderabad"),
-    ("Niloufer Hospital", "Hyderabad"),
-    ("Fever Hospital", "Hyderabad"),
-    ("Chest Hospital Erragadda", "Hyderabad"),
-    ("ENT Hospital Koti", "Hyderabad"),
-    ("Sarojini Devi Eye Hospital", "Hyderabad"),
-    ("MGM Hospital", "Warangal"),
-    ("District Hospital", "Nalgonda"),
-    ("District Hospital", "Karimnagar"),
-    ("RIMS Hospital", "Adilabad"),
-    ("Government General Hospital", "Nizamabad"),
-    ("Government General Hospital", "Mahabubnagar")
+    ("Osmania General Hospital", "Hyderabad", 17.3850, 78.4867),
+    ("Gandhi Hospital", "Hyderabad", 17.4126, 78.5089),
+    ("NIMS Hospital", "Hyderabad", 17.4257, 78.4471),
+    ("MNJ Cancer Hospital", "Hyderabad", 17.4466, 78.4694),
+    ("Niloufer Hospital", "Hyderabad", 17.4013, 78.4867),
+    ("MGM Hospital", "Warangal", 17.9784, 79.5941),
+    ("District Hospital", "Nalgonda", 17.0544, 79.2671),
+    ("RIMS Hospital", "Adilabad", 19.6641, 78.5320),
+    ("Government General Hospital", "Nizamabad", 18.6725, 78.0941),
+    ("Government General Hospital", "Mahabubnagar", 16.7488, 77.9850)
 ]
+insert_scheme("PM-JAY", 940600000000, 564360000000, 376240000000, 2025)
+insert_scheme("NHM", 372270000000, 223362000000, 148908000000, 2025)
+insert_scheme("Aarogyasri", 50000000000, 30000000000, 20000000000, 2025)
+
+print("Government schemes inserted")
 
 for h in hospitals:
-    insert_hospital(h[0], h[1])
-
-print("Hospitals inserted")
+    insert_hospital(h[0], h[1], h[2], h[3])
 
 # -----------------------------
 # REPORTS (FAST BULK INSERT)
