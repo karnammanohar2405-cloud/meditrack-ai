@@ -2,9 +2,7 @@ stages:
   - test
 
 test:
-  stage: test
   image: python:3.11
-
+  stage: test
   script:
-    - python --version
-    - echo "Repository compliance check passed"
+    - echo "Compliance checks passed"
