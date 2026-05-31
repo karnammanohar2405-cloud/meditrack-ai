@@ -1,5 +1,5 @@
 ## Live Demo 
-https://tagged-examine-suit-obituaries.trycloudflare.com/
+https://huggingface.co/spaces/eedulakantijashwitha/meditrackAI
 
 # MissingMedicines AI 🏥💊
 
