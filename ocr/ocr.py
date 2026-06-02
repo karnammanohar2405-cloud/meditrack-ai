@@ -3,6 +3,11 @@ import pytesseract
 import pdfplumber
 import tempfile
 
+# Tesseract OCR path
+pytesseract.pytesseract.tesseract_cmd = (
+    r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+)
+
 
 def extract_text_from_image(image):
     """
@@ -39,3 +44,4 @@ def extract_text_from_pdf(uploaded_file):
                 text += page_text + "\n"
 
     return text
+

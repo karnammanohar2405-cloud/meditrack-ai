@@ -1,13 +1,21 @@
-import folium
-from folium.plugins import HeatMap
-from streamlit_folium import st_folium
-
-from data.database import fetch_schemes
-from ai.reach_analysis import calculate_reach_score
 
 import streamlit as st
 import pandas as pd
 from PIL import Image
+
+import folium
+from streamlit_folium import st_folium
+
+from data.database import (
+    fetch_hospitals,
+    fetch_medicines,
+    fetch_reports,
+    fetch_schemes,
+    search_medicine,
+    insert_report_single
+)
+
+from ai.reach_analysis import calculate_reach_score
 
 from ocr.ocr import (
     extract_text_from_image,
@@ -22,13 +30,7 @@ from ai.groq_analysis import (
     analyze_shortages
 )
 
-from data.database import (
-    fetch_hospitals,
-    fetch_medicines,
-    fetch_reports,
-    search_medicine,
-    insert_report_single
-)
+# ---------------- PAGE CONFIG ---------------- #
 
 st.set_page_config(
     page_title="MissingMedicines AI",
@@ -36,8 +38,11 @@ st.set_page_config(
     layout="wide"
 )
 
-# Sidebar
-st.sidebar.title("🏥 Medicinetracker in government hospitals using AI")
+# ---------------- SIDEBAR ---------------- #
+
+st.sidebar.title(
+    "🏥 Medicinetracker in Government Hospitals using AI"
+)
 
 page = st.sidebar.radio(
     "Navigation",
@@ -52,11 +57,17 @@ page = st.sidebar.radio(
     ]
 )
 
-# ---------------- HOME ---------------- #
+# =========================================================
+# HOME PAGE
+# ========================================================= #
+
 if page == "Home":
 
     st.title("🏥 MissingMedicines AI")
-    st.subheader("Government Hospital Medicine Availability Dashboard")
+
+    st.subheader(
+        "Government Hospital Medicine Availability Dashboard"
+    )
 
     st.markdown("""
     This system helps citizens:
@@ -73,8 +84,13 @@ if page == "Home":
     total_hospitals = len(hospitals)
     total_medicines = len(medicines)
 
-    shortage_reports = len([r for r in reports if r[3] != "Available"])
-    critical_alerts = len([r for r in reports if r[3] == "Out of Stock"])
+    shortage_reports = len(
+        [r for r in reports if r[3] != "Available"]
+    )
+
+    critical_alerts = len(
+        [r for r in reports if r[3] == "Out of Stock"]
+    )
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -84,27 +100,42 @@ if page == "Home":
     col4.metric("Critical Alerts", critical_alerts)
 
     st.markdown("---")
+
     st.subheader("Recent Alerts")
 
     for r in reports[-5:]:
+
         hospital, medicine, qty, status, time = r
 
         if status == "Out of Stock":
-            st.error(f"🔴 {medicine} OUT OF STOCK in {hospital}")
+
+            st.error(
+                f"🔴 {medicine} OUT OF STOCK in {hospital}"
+            )
 
         elif status == "Low Stock":
-            st.warning(f"🟡 {medicine} LOW STOCK in {hospital}")
+
+            st.warning(
+                f"🟡 {medicine} LOW STOCK in {hospital}"
+            )
 
         else:
-            st.success(f"🟢 {medicine} AVAILABLE in {hospital}")
 
+            st.success(
+                f"🟢 {medicine} AVAILABLE in {hospital}"
+            )
 
-# ---------------- SEARCH ---------------- #
+# =========================================================
+# SEARCH MEDICINE
+# ========================================================= #
+
 elif page == "Search Medicine":
 
     st.title("🔍 Search Medicine")
 
-    medicine = st.text_input("Enter Medicine Name")
+    medicine = st.text_input(
+        "Enter Medicine Name"
+    )
 
     if st.button("Search"):
 
@@ -134,20 +165,29 @@ elif page == "Search Medicine":
                     status
                 ])
 
-            df = pd.DataFrame(formatted_results, columns=[
-                "Hospital",
-                "Medicine",
-                "Stock",
-                "Status"
-            ])
+            df = pd.DataFrame(
+                formatted_results,
+                columns=[
+                    "Hospital",
+                    "Medicine",
+                    "Stock",
+                    "Status"
+                ]
+            )
 
-            st.dataframe(df, use_container_width=True)
+            st.dataframe(
+                df,
+                use_container_width=True
+            )
 
         else:
+
             st.error("No medicine found")
 
+# =========================================================
+# UPLOAD PRESCRIPTION
+# ========================================================= #
 
-# ---------------- UPLOAD PRESCRIPTION ---------------- #
 elif page == "Upload Prescription":
 
     st.title("📷 Upload Prescription")
@@ -161,87 +201,109 @@ elif page == "Upload Prescription":
 
         st.success("Uploaded successfully")
 
-        if file.type == "application/pdf":
-            extracted_text = extract_text_from_pdf(file)
+        try:
 
-        else:
-            image = Image.open(file)
-            extracted_text = extract_text_from_image(image)
+            if file.type == "application/pdf":
 
-        st.subheader("📄 Extracted Text")
+                extracted_text = extract_text_from_pdf(file)
 
-        st.text_area(
-            "OCR Output",
-            extracted_text,
-            height=200
-        )
+            else:
 
-        medicines = extract_medicines(extracted_text)
+                image = Image.open(file)
 
-        st.subheader("💊 Detected Medicines")
+                extracted_text = extract_text_from_image(
+                    image
+                )
 
-        if medicines:
+            st.subheader("📄 Extracted Text")
 
-            for medicine in medicines:
-                st.success(f"💊 {medicine}")
+            st.text_area(
+                "OCR Output",
+                extracted_text,
+                height=200
+            )
 
-        else:
-            st.warning("No medicines detected")
+            medicines = extract_medicines(
+                extracted_text
+            )
 
-        if st.button("Find Hospitals"):
+            st.subheader("💊 Detected Medicines")
 
-            for medicine in medicines:
+            if medicines:
 
-                results = search_medicine(medicine)
+                for medicine in medicines:
 
-                if results:
+                    st.success(f"💊 {medicine}")
 
-                    st.write(f"### {medicine}")
+            else:
 
-                    formatted_results = []
+                st.warning(
+                    "No medicines detected"
+                )
 
-                    for r in results:
+            if st.button("Find Hospitals"):
 
-                        hospital, med, stock, status = r
+                for medicine in medicines:
 
-                        if status == "Available":
-                            status = "🟢 Available"
-
-                        elif status == "Low Stock":
-                            status = "🟡 Low Stock"
-
-                        else:
-                            status = "🔴 Out of Stock"
-
-                        formatted_results.append([
-                            hospital,
-                            med,
-                            stock,
-                            status
-                        ])
-
-                    df = pd.DataFrame(
-                        formatted_results,
-                        columns=[
-                            "Hospital",
-                            "Medicine",
-                            "Stock",
-                            "Status"
-                        ]
+                    results = search_medicine(
+                        medicine
                     )
 
-                    st.dataframe(
-                        df,
-                        use_container_width=True
-                    )
+                    if results:
 
-                else:
-                    st.warning(
-                        f"No hospitals found for {medicine}"
-                    )
+                        st.write(f"### {medicine}")
 
+                        formatted_results = []
 
-# ---------------- REPORT SHORTAGE ---------------- #
+                        for r in results:
+
+                            hospital, med, stock, status = r
+
+                            if status == "Available":
+                                status = "🟢 Available"
+
+                            elif status == "Low Stock":
+                                status = "🟡 Low Stock"
+
+                            else:
+                                status = "🔴 Out of Stock"
+
+                            formatted_results.append([
+                                hospital,
+                                med,
+                                stock,
+                                status
+                            ])
+
+                        df = pd.DataFrame(
+                            formatted_results,
+                            columns=[
+                                "Hospital",
+                                "Medicine",
+                                "Stock",
+                                "Status"
+                            ]
+                        )
+
+                        st.dataframe(
+                            df,
+                            use_container_width=True
+                        )
+
+                    else:
+
+                        st.warning(
+                            f"No hospitals found for {medicine}"
+                        )
+
+        except Exception as e:
+
+            st.error(f"OCR Error: {e}")
+
+# =========================================================
+# REPORT SHORTAGE
+# ========================================================= #
+
 elif page == "Report Shortage":
 
     st.title("📝 Report Medicine Shortage")
@@ -252,33 +314,55 @@ elif page == "Report Shortage":
     hospital_names = [h[1] for h in hospitals]
     medicine_names = [m[1] for m in medicines]
 
-    selected_hospital = st.selectbox("Hospital", hospital_names)
-    selected_medicine = st.selectbox("Medicine", medicine_names)
+    selected_hospital = st.selectbox(
+        "Hospital",
+        hospital_names
+    )
 
-    quantity = st.number_input("Stock Quantity", min_value=0)
+    selected_medicine = st.selectbox(
+        "Medicine",
+        medicine_names
+    )
+
+    quantity = st.number_input(
+        "Stock Quantity",
+        min_value=0
+    )
 
     if st.button("Submit Report"):
 
-        hospital_id = next(
-            h[0] for h in hospitals
-            if h[1] == selected_hospital
-        )
+        try:
 
-        medicine_id = next(
-            m[0] for m in medicines
-            if m[1] == selected_medicine
-        )
+            hospital_id = next(
+                h[0]
+                for h in hospitals
+                if h[1] == selected_hospital
+            )
 
-        insert_report_single(
-            hospital_id,
-            medicine_id,
-            quantity
-        )
+            medicine_id = next(
+                m[0]
+                for m in medicines
+                if m[1] == selected_medicine
+            )
 
-        st.success("Report submitted successfully ✅")
+            insert_report_single(
+                hospital_id,
+                medicine_id,
+                quantity
+            )
 
+            st.success(
+                "Report submitted successfully ✅"
+            )
 
-# ---------------- DASHBOARD ---------------- #
+        except Exception as e:
+
+            st.error(f"Submission Error: {e}")
+
+# =========================================================
+# DASHBOARD
+# ========================================================= #
+
 elif page == "Dashboard":
 
     st.title("📊 Dashboard")
@@ -308,15 +392,21 @@ elif page == "Dashboard":
             updated
         ])
 
-    df = pd.DataFrame(formatted_reports, columns=[
-        "Hospital",
-        "Medicine",
-        "Stock",
-        "Status",
-        "Last Updated"
-    ])
+    df = pd.DataFrame(
+        formatted_reports,
+        columns=[
+            "Hospital",
+            "Medicine",
+            "Stock",
+            "Status",
+            "Last Updated"
+        ]
+    )
 
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(
+        df,
+        use_container_width=True
+    )
 
     total_stock = df["Stock"].sum()
 
@@ -326,9 +416,20 @@ elif page == "Dashboard":
 
     col1, col2, col3 = st.columns(3)
 
-    col1.metric("💰 Budget", f"₹{budget:,.0f}")
-    col2.metric("📦 Procured", f"₹{procured:,.0f}")
-    col3.metric("🚚 Distributed", f"₹{distributed:,.0f}")
+    col1.metric(
+        "💰 Budget",
+        f"₹{budget:,.0f}"
+    )
+
+    col2.metric(
+        "📦 Procured",
+        f"₹{procured:,.0f}"
+    )
+
+    col3.metric(
+        "🚚 Distributed",
+        f"₹{distributed:,.0f}"
+    )
 
     st.markdown("---")
 
@@ -348,37 +449,66 @@ elif page == "Dashboard":
 
     st.subheader("🚨 Stock Status")
 
-    available_count = len(df[df["Status"] == "🟢 Available"])
-    low_count = len(df[df["Status"] == "🟡 Low Stock"])
-    out_count = len(df[df["Status"] == "🔴 Out of Stock"])
+    available_count = len(
+        df[df["Status"] == "🟢 Available"]
+    )
+
+    low_count = len(
+        df[df["Status"] == "🟡 Low Stock"]
+    )
+
+    out_count = len(
+        df[df["Status"] == "🔴 Out of Stock"]
+    )
 
     col1, col2, col3 = st.columns(3)
 
-    col1.success(f"🟢 Available : {available_count}")
-    col2.warning(f"🟡 Low Stock : {low_count}")
-    col3.error(f"🔴 Out of Stock : {out_count}")
+    col1.success(
+        f"🟢 Available : {available_count}"
+    )
 
+    col2.warning(
+        f"🟡 Low Stock : {low_count}"
+    )
 
-# ---------------- AI INSIGHTS ---------------- #
+    col3.error(
+        f"🔴 Out of Stock : {out_count}"
+    )
+
+# =========================================================
+# AI INSIGHTS
+# ========================================================= #
+
 elif page == "AI Insights":
 
     st.title("🤖 AI Insights")
 
     reports = fetch_reports()
 
-    df = pd.DataFrame(reports, columns=[
-        "Hospital",
-        "Medicine",
-        "Stock",
-        "Status",
-        "Last Updated"
-    ])
+    df = pd.DataFrame(
+        reports,
+        columns=[
+            "Hospital",
+            "Medicine",
+            "Stock",
+            "Status",
+            "Last Updated"
+        ]
+    )
 
     total = len(df)
 
-    low = len(df[df["Status"] == "Low Stock"])
-    out = len(df[df["Status"] == "Out of Stock"])
-    available = len(df[df["Status"] == "Available"])
+    low = len(
+        df[df["Status"] == "Low Stock"]
+    )
+
+    out = len(
+        df[df["Status"] == "Out of Stock"]
+    )
+
+    available = len(
+        df[df["Status"] == "Available"]
+    )
 
     efficiency = (
         (available / total) * 100
@@ -431,20 +561,28 @@ elif page == "AI Insights":
 
     if st.button("Generate AI Analysis"):
 
-        analysis = analyze_shortages(str(reports))
+        try:
 
-        st.subheader("🧠 AI Analysis Report")
+            analysis = analyze_shortages(str(reports[:10]))
+            st.subheader(
+                "🧠 AI Analysis Report"
+            )
 
-        st.write(analysis)
+            st.write(analysis)
 
+        except Exception as e:
 
-# ---------------- GOVT MAP ---------------- #
-# ---------------- GOVT MAP ---------------- #
+            st.error(f"AI Error: {e}")
 
-    # ---------------- GOVT MAP ---------------- #
+# =========================================================
+# GOVT MAP
+# ========================================================= #
+
 elif page == "Govt Spending & Reach Map":
 
-    st.title("🌍 Government Spending vs Healthcare Reach")
+    st.title(
+        "🌍 Government Spending vs Healthcare Reach"
+    )
 
     reports = fetch_reports()
 
@@ -461,7 +599,9 @@ elif page == "Govt Spending & Reach Map":
 
     schemes = fetch_schemes()
 
-    analysis = calculate_reach_score(reports)
+    analysis = calculate_reach_score(
+        reports
+    )
 
     col1, col2 = st.columns(2)
 
@@ -477,7 +617,9 @@ elif page == "Govt Spending & Reach Map":
 
     st.markdown("---")
 
-    st.subheader("💰 Government Health Schemes")
+    st.subheader(
+        "💰 Government Health Schemes"
+    )
 
     if schemes:
 
@@ -499,72 +641,74 @@ elif page == "Govt Spending & Reach Map":
         )
 
     else:
+
         st.warning("No scheme data found")
 
     st.markdown("---")
 
-    st.subheader("🗺️ Hospital Medicine Status Map")
-
-    m = folium.Map(
-        location=[17.3850, 78.4867],
-        zoom_start=7
+    st.subheader(
+        "🗺️ Hospital Medicine Status Map"
     )
 
-    hospitals = fetch_hospitals()
+    try:
 
-    heat_data = []
+        hospitals = fetch_hospitals()
 
-    for h in hospitals:
-
-        try:
-            lat = float(h[3])
-            lon = float(h[4])
-
-            heat_data.append([lat, lon])
-
-        except:
-            continue
-
-    # TEMPORARILY DISABLED FOR DEBUGGING
-    # HeatMap(heat_data).add_to(m)
-
-    for r in reports:
-
-        hospital, medicine, stock, status, time = r
-
-        hosp = next(
-            (h for h in hospitals if h[1] == hospital),
-            None
+        m = folium.Map(
+            location=[17.3850, 78.4867],
+            zoom_start=7
         )
 
-        if hosp:
+        for r in reports:
 
-            try:
-                lat = float(hosp[3])
-                lon = float(hosp[4])
+            hospital, medicine, stock, status, time = r
 
-            except:
-                continue
-
-            color = (
-                "green"
-                if status == "Available"
-                else "orange"
-                if status == "Low Stock"
-                else "red"
+            hosp = next(
+                (
+                    h for h in hospitals
+                    if h[1] == hospital
+                ),
+                None
             )
 
-            folium.Marker(
-                location=[lat, lon],
-                popup=f"{hospital}<br>{medicine}<br>{status}",
-                icon=folium.Icon(color=color)
-            ).add_to(m)
+            if hosp:
 
-    st_folium(
-        m,
-        width=700,
-        height=500
-    )
+                try:
+
+                    lat = float(hosp[3])
+                    lon = float(hosp[4])
+
+                    color = (
+                        "green"
+                        if status == "Available"
+                        else "orange"
+                        if status == "Low Stock"
+                        else "red"
+                    )
+
+                    folium.Marker(
+                        location=[lat, lon],
+                        popup=folium.Popup(
+                            f"{hospital} | {medicine} | {status}",
+                            max_width=300
+                        ),
+                        icon=folium.Icon(
+                            color=color
+                        )
+                    ).add_to(m)
+
+                except:
+                    continue
+
+        st_folium(
+            m,
+            width=700,
+            height=500
+        )
+
+    except Exception as e:
+
+        st.error(f"Map Error: {e}")
 
     total = len(df)
 
@@ -592,3 +736,4 @@ elif page == "Govt Spending & Reach Map":
         "🔴 Out Of Stock",
         out
     )
+
