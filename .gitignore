@@ -27,3 +27,5 @@ Thumbs.db
 build/
 dist/
 *.egg-info/
+sample_prescription.jpg
+data/hospital_data.db
