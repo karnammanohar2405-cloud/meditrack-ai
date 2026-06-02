@@ -9,11 +9,12 @@ def extract_medicines(text):
 
     detected = []
 
-    text = text.lower()
+    text_upper = text.upper()
 
+    # First: Match medicines from database
     for medicine in medicines:
 
-        if medicine.lower() in text:
+        if medicine.upper() in text_upper:
             detected.append(medicine)
 
     return list(set(detected))

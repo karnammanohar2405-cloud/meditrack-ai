@@ -1,4 +1,5 @@
 import folium
+from folium.plugins import HeatMap
 from streamlit_folium import st_folium
 
 from data.database import fetch_schemes
@@ -90,10 +91,12 @@ if page == "Home":
 
         if status == "Out of Stock":
             st.error(f"🔴 {medicine} OUT OF STOCK in {hospital}")
+
         elif status == "Low Stock":
             st.warning(f"🟡 {medicine} LOW STOCK in {hospital}")
+
         else:
-            st.success(f"🟢 {medicine} available in {hospital}")
+            st.success(f"🟢 {medicine} AVAILABLE in {hospital}")
 
 
 # ---------------- SEARCH ---------------- #
@@ -108,13 +111,38 @@ elif page == "Search Medicine":
         results = search_medicine(medicine)
 
         if results:
-            df = pd.DataFrame(results, columns=[
+
+            formatted_results = []
+
+            for r in results:
+
+                hospital, med, stock, status = r
+
+                if status == "Available":
+                    status = "🟢 Available"
+
+                elif status == "Low Stock":
+                    status = "🟡 Low Stock"
+
+                else:
+                    status = "🔴 Out of Stock"
+
+                formatted_results.append([
+                    hospital,
+                    med,
+                    stock,
+                    status
+                ])
+
+            df = pd.DataFrame(formatted_results, columns=[
                 "Hospital",
                 "Medicine",
                 "Stock",
                 "Status"
             ])
+
             st.dataframe(df, use_container_width=True)
+
         else:
             st.error("No medicine found")
 
@@ -135,21 +163,28 @@ elif page == "Upload Prescription":
 
         if file.type == "application/pdf":
             extracted_text = extract_text_from_pdf(file)
+
         else:
             image = Image.open(file)
             extracted_text = extract_text_from_image(image)
 
         st.subheader("📄 Extracted Text")
 
-        st.text_area("OCR Output", extracted_text, height=200)
+        st.text_area(
+            "OCR Output",
+            extracted_text,
+            height=200
+        )
 
         medicines = extract_medicines(extracted_text)
 
         st.subheader("💊 Detected Medicines")
 
         if medicines:
+
             for medicine in medicines:
                 st.success(f"💊 {medicine}")
+
         else:
             st.warning("No medicines detected")
 
@@ -163,17 +198,47 @@ elif page == "Upload Prescription":
 
                     st.write(f"### {medicine}")
 
-                    df = pd.DataFrame(results, columns=[
-                        "Hospital",
-                        "Medicine",
-                        "Stock",
-                        "Status"
-                    ])
+                    formatted_results = []
 
-                    st.dataframe(df, use_container_width=True)
+                    for r in results:
+
+                        hospital, med, stock, status = r
+
+                        if status == "Available":
+                            status = "🟢 Available"
+
+                        elif status == "Low Stock":
+                            status = "🟡 Low Stock"
+
+                        else:
+                            status = "🔴 Out of Stock"
+
+                        formatted_results.append([
+                            hospital,
+                            med,
+                            stock,
+                            status
+                        ])
+
+                    df = pd.DataFrame(
+                        formatted_results,
+                        columns=[
+                            "Hospital",
+                            "Medicine",
+                            "Stock",
+                            "Status"
+                        ]
+                    )
+
+                    st.dataframe(
+                        df,
+                        use_container_width=True
+                    )
 
                 else:
-                    st.warning(f"No hospitals found for {medicine}")
+                    st.warning(
+                        f"No hospitals found for {medicine}"
+                    )
 
 
 # ---------------- REPORT SHORTAGE ---------------- #
@@ -194,10 +259,21 @@ elif page == "Report Shortage":
 
     if st.button("Submit Report"):
 
-        hospital_id = next(h[0] for h in hospitals if h[1] == selected_hospital)
-        medicine_id = next(m[0] for m in medicines if m[1] == selected_medicine)
+        hospital_id = next(
+            h[0] for h in hospitals
+            if h[1] == selected_hospital
+        )
 
-        insert_report_single(hospital_id, medicine_id, quantity)
+        medicine_id = next(
+            m[0] for m in medicines
+            if m[1] == selected_medicine
+        )
+
+        insert_report_single(
+            hospital_id,
+            medicine_id,
+            quantity
+        )
 
         st.success("Report submitted successfully ✅")
 
@@ -209,7 +285,30 @@ elif page == "Dashboard":
 
     reports = fetch_reports()
 
-    df = pd.DataFrame(reports, columns=[
+    formatted_reports = []
+
+    for r in reports:
+
+        hospital, medicine, stock, status, updated = r
+
+        if status == "Available":
+            status = "🟢 Available"
+
+        elif status == "Low Stock":
+            status = "🟡 Low Stock"
+
+        else:
+            status = "🔴 Out of Stock"
+
+        formatted_reports.append([
+            hospital,
+            medicine,
+            stock,
+            status,
+            updated
+        ])
+
+    df = pd.DataFrame(formatted_reports, columns=[
         "Hospital",
         "Medicine",
         "Stock",
@@ -219,20 +318,45 @@ elif page == "Dashboard":
 
     st.dataframe(df, use_container_width=True)
 
+    total_stock = df["Stock"].sum()
+
+    budget = total_stock * 120
+    procured = total_stock * 100
+    distributed = total_stock * 90
+
     col1, col2, col3 = st.columns(3)
 
-    col1.metric("Budget", "₹2.5 Cr")
-    col2.metric("Procured", "₹2.2 Cr")
-    col3.metric("Distributed", "₹2.0 Cr")
+    col1.metric("💰 Budget", f"₹{budget:,.0f}")
+    col2.metric("📦 Procured", f"₹{procured:,.0f}")
+    col3.metric("🚚 Distributed", f"₹{distributed:,.0f}")
 
-    st.subheader("Medicine Availability")
+    st.markdown("---")
 
-    chart_data = pd.DataFrame({
-        "Medicine": ["Paracetamol", "Insulin", "Azithromycin", "Crocin"],
-        "Availability": [92, 70, 84, 88]
-    })
+    st.subheader("📈 Medicine Availability")
 
-    st.bar_chart(chart_data.set_index("Medicine"))
+    medicine_counts = (
+        df.groupby("Medicine")["Stock"]
+        .sum()
+        .reset_index()
+    )
+
+    st.bar_chart(
+        medicine_counts.set_index("Medicine")
+    )
+
+    st.markdown("---")
+
+    st.subheader("🚨 Stock Status")
+
+    available_count = len(df[df["Status"] == "🟢 Available"])
+    low_count = len(df[df["Status"] == "🟡 Low Stock"])
+    out_count = len(df[df["Status"] == "🔴 Out of Stock"])
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.success(f"🟢 Available : {available_count}")
+    col2.warning(f"🟡 Low Stock : {low_count}")
+    col3.error(f"🔴 Out of Stock : {out_count}")
 
 
 # ---------------- AI INSIGHTS ---------------- #
@@ -240,16 +364,6 @@ elif page == "AI Insights":
 
     st.title("🤖 AI Insights")
 
-    if st.button("Generate AI Analysis"):
-
-        reports = fetch_reports()
-        analysis = analyze_shortages(str(reports))
-
-        st.subheader("AI Analysis Report")
-        st.write(analysis)
-
-    st.markdown("---")
-
     reports = fetch_reports()
 
     df = pd.DataFrame(reports, columns=[
@@ -264,30 +378,86 @@ elif page == "AI Insights":
 
     low = len(df[df["Status"] == "Low Stock"])
     out = len(df[df["Status"] == "Out of Stock"])
+    available = len(df[df["Status"] == "Available"])
 
-    col1, col2, col3 = st.columns(3)
+    efficiency = (
+        (available / total) * 100
+        if total > 0 else 0
+    )
 
-    col1.metric("Total Records", total)
-    col2.metric("Low Stock", low)
-    col3.metric("Out Of Stock", out)
+    col1, col2, col3, col4 = st.columns(4)
+
+    col1.success(f"🟢 Available\n\n{available}")
+    col2.warning(f"🟡 Low Stock\n\n{low}")
+    col3.error(f"🔴 Out of Stock\n\n{out}")
+    col4.info(f"📈 Efficiency\n\n{efficiency:.2f}%")
+
+    st.markdown("---")
+
+    st.subheader("📊 Status Distribution")
+
+    status_chart = pd.DataFrame({
+        "Status": [
+            "Available",
+            "Low Stock",
+            "Out of Stock"
+        ],
+        "Count": [
+            available,
+            low,
+            out
+        ]
+    })
+
+    st.bar_chart(
+        status_chart.set_index("Status")
+    )
+
+    st.markdown("---")
+
+    st.subheader("💊 Medicine-wise Stock")
+
+    medicine_chart = (
+        df.groupby("Medicine")["Stock"]
+        .sum()
+        .reset_index()
+    )
+
+    st.bar_chart(
+        medicine_chart.set_index("Medicine")
+    )
+
+    st.markdown("---")
+
+    if st.button("Generate AI Analysis"):
+
+        analysis = analyze_shortages(str(reports))
+
+        st.subheader("🧠 AI Analysis Report")
+
+        st.write(analysis)
 
 
 # ---------------- GOVT MAP ---------------- #
 # ---------------- GOVT MAP ---------------- #
+
+    # ---------------- GOVT MAP ---------------- #
 elif page == "Govt Spending & Reach Map":
 
     st.title("🌍 Government Spending vs Healthcare Reach")
 
     reports = fetch_reports()
 
-    # ✅ FIXED: df always defined safely here
-    df = pd.DataFrame(reports, columns=[
-        "Hospital",
-        "Medicine",
-        "Stock",
-        "Status",
-        "Last Updated"
-    ])
+    df = pd.DataFrame(
+        reports,
+        columns=[
+            "Hospital",
+            "Medicine",
+            "Stock",
+            "Status",
+            "Last Updated"
+        ]
+    )
 
     schemes = fetch_schemes()
 
@@ -295,23 +465,39 @@ elif page == "Govt Spending & Reach Map":
 
     col1, col2 = st.columns(2)
 
-    col1.metric("Reach Score (%)", analysis["reach_score"])
-    col2.metric("Shortage Rate (%)", analysis["shortage_rate"])
+    col1.metric(
+        "Reach Score (%)",
+        analysis["reach_score"]
+    )
+
+    col2.metric(
+        "Shortage Rate (%)",
+        analysis["shortage_rate"]
+    )
 
     st.markdown("---")
 
     st.subheader("💰 Government Health Schemes")
 
     if schemes:
-        scheme_df = pd.DataFrame(schemes, columns=[
-            "ID",
-            "Scheme",
-            "Budget",
-            "State Share",
-            "Central Share",
-            "Year"
-        ])
-        st.dataframe(scheme_df, use_container_width=True)
+
+        scheme_df = pd.DataFrame(
+            schemes,
+            columns=[
+                "ID",
+                "Scheme",
+                "Budget",
+                "State Share",
+                "Central Share",
+                "Year"
+            ]
+        )
+
+        st.dataframe(
+            scheme_df,
+            use_container_width=True
+        )
+
     else:
         st.warning("No scheme data found")
 
@@ -319,19 +505,54 @@ elif page == "Govt Spending & Reach Map":
 
     st.subheader("🗺️ Hospital Medicine Status Map")
 
-    m = folium.Map(location=[17.3850, 78.4867], zoom_start=7)
+    m = folium.Map(
+        location=[17.3850, 78.4867],
+        zoom_start=7
+    )
 
     hospitals = fetch_hospitals()
 
+    heat_data = []
+
+    for h in hospitals:
+
+        try:
+            lat = float(h[3])
+            lon = float(h[4])
+
+            heat_data.append([lat, lon])
+
+        except:
+            continue
+
+    # TEMPORARILY DISABLED FOR DEBUGGING
+    # HeatMap(heat_data).add_to(m)
+
     for r in reports:
+
         hospital, medicine, stock, status, time = r
 
-        hosp = next((h for h in hospitals if h[1] == hospital), None)
+        hosp = next(
+            (h for h in hospitals if h[1] == hospital),
+            None
+        )
 
         if hosp:
-            lat, lon = hosp[3], hosp[4]
 
-            color = "green" if status == "Available" else "orange" if status == "Low Stock" else "red"
+            try:
+                lat = float(hosp[3])
+                lon = float(hosp[4])
+
+            except:
+                continue
+
+            color = (
+                "green"
+                if status == "Available"
+                else "orange"
+                if status == "Low Stock"
+                else "red"
+            )
 
             folium.Marker(
                 location=[lat, lon],
@@ -339,14 +560,35 @@ elif page == "Govt Spending & Reach Map":
                 icon=folium.Icon(color=color)
             ).add_to(m)
 
-    st_folium(m, width=700, height=500)
+    st_folium(
+        m,
+        width=700,
+        height=500
+    )
 
     total = len(df)
-    low = len(df[df["Status"] == "Low Stock"])
-    out = len(df[df["Status"] == "Out of Stock"])
+
+    low = len(
+        df[df["Status"] == "Low Stock"]
+    )
+
+    out = len(
+        df[df["Status"] == "Out of Stock"]
+    )
 
     col1, col2, col3 = st.columns(3)
 
-    col1.metric("Total Records", total)
-    col2.metric("Low Stock", low)
-    col3.metric("Out Of Stock", out)
+    col1.metric(
+        "Total Records",
+        total
+    )
+
+    col2.metric(
+        "🟡 Low Stock",
+        low
+    )
+
+    col3.metric(
+        "🔴 Out Of Stock",
+        out
+    )

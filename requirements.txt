@@ -1,4 +1,4 @@
-streamlit
+streamlit==1.45.1
 pandas
 pillow
 pytesseract
@@ -6,8 +6,19 @@ pdfplumber
 opencv-python
 groq
 python-dotenv
-folium
-streamlit-folium
+
+folium==0.19.5
+streamlit-folium==0.25.0
+
 fastapi
 uvicorn
 reportlab
+
+pytest
+pytest-cov
+bandit
+black
+ruff
+pip-audit
+pre-commit
+mypy
