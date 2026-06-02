@@ -1,8 +1,12 @@
 stages:
   - test
 
+image: python:3.11
+
+before_script:
+  - pip install -r requirements.txt
+
 test:
-  image: python:3.11
   stage: test
   script:
-    - echo "Compliance checks passed"
+    - pytest
