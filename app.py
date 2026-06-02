@@ -273,6 +273,7 @@ elif page == "AI Insights":
 
 
 # ---------------- GOVT MAP ---------------- #
+# ---------------- GOVT MAP ---------------- #
 elif page == "Govt Spending & Reach Map":
 
     st.title("🌍 Government Spending vs Healthcare Reach")
