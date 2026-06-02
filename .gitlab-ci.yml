@@ -1,8 +1,24 @@
 stages:
+  - lint
+  - type_check
   - test
 
+image: python:3.11
+
+before_script:
+  - pip install -r requirements.txt
+
+lint:
+  stage: lint
+  script:
+    - ruff check .
+
+type_check:
+  stage: type_check
+  script:
+    - mypy .
+
 test:
-  image: python:3.11
   stage: test
   script:
-    - echo "Compliance checks passed"
+    - pytest
